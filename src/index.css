@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-sans text-brand-dark bg-white antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-blue text-white px-6 py-3 rounded-lg font-semibold 
+           hover:bg-brand-dark transition-all duration-300 
+           shadow-lg hover:shadow-xl hover:-translate-y-0.5;
+  }
+  .btn-secondary {
+    @apply border-2 border-brand-blue text-brand-blue px-6 py-3 rounded-lg font-semibold 
+           hover:bg-brand-light transition-all duration-300;
+  }
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
