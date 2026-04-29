@@ -1,22 +1,9 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore"; // <-- Added for database features
-
 const firebaseConfig = {
-  apiKey: "AIzaSyB_tg3j7tA6sum_7VO3uOALH4DvD6eyAoM",
-  authDomain: "dtechnurse-f9cca.firebaseapp.com",
-  projectId: "dtechnurse-f9cca",
-  storageBucket: "dtechnurse-f9cca.firebasestorage.app",
-  messagingSenderId: "16014381854",
-  appId: "1:16014381854:web:3943b88f35bcc58abdef0f",
-  measurementId: "G-9ZWE8ZH3K6"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Analytics (Works perfectly in Vite/React)
-const analytics = getAnalytics(app);
-
-// Initialize Firestore and export it so your hooks can use it
-export const db = getFirestore(app); 
