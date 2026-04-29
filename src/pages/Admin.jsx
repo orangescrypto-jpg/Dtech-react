@@ -4,7 +4,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Loader2, Save, Link } from 'lucide-react';
+import { Loader2, Save, LinkIcon } from 'lucide-react';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -15,32 +15,25 @@ export default function Admin() {
     author: '',
     excerpt: '',
     content: '',
-    coverUrl: '' // Changed from file state to URL string
+    coverUrl: ''
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle standard text inputs
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Simplified Quill Handler: Just prompts for a URL and inserts it
   const handleInlineImage = () => {
     const url = window.prompt("Paste the external image URL here:");
     if (url) {
       const quill = quillRef.current.getEditor();
-      const range = quill.getSelection(true); // Get current cursor position
-      
-      // Insert the image at the cursor
+      const range = quill.getSelection(true);
       quill.insertEmbed(range.index, 'image', url);
-      
-      // Move cursor to the right of the image so you can keep typing
-      quill.setSelection(range.index + 1); 
+      quill.setSelection(range.index + 1);
     }
   };
 
-  // Quill Toolbar Configuration
   const quillModules = {
     toolbar: {
       container: [
@@ -52,12 +45,11 @@ export default function Admin() {
         ['clean']
       ],
       handlers: {
-        image: handleInlineImage // Override default image handler with our prompt
+        image: handleInlineImage
       }
     }
   };
 
-  // Submit the whole blog post
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title || !formData.content || !formData.coverUrl) {
@@ -67,13 +59,12 @@ export default function Admin() {
     setIsSubmitting(true);
 
     try {
-      // No file uploads! Just save the strings directly to Firestore.
       await addDoc(collection(db, 'blogPosts'), {
         title: formData.title,
         author: formData.author || "DTECHNURSE Admin",
         excerpt: formData.excerpt,
         content: formData.content, 
-        image: formData.coverUrl, // The external URL
+        image: formData.coverUrl,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         createdAt: serverTimestamp()
       });
@@ -105,7 +96,7 @@ export default function Admin() {
         {/* Cover Image URL Input & Live Preview */}
         <div>
           <label className="block text-sm font-semibold mb-3 flex items-center gap-2">
-            <Link size={16} /> Cover Image URL
+            <LinkIcon size={16} /> Cover Image URL
           </label>
           <input 
             type="url" 
@@ -125,8 +116,8 @@ export default function Admin() {
                 alt="Cover Preview" 
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.src = ''; 
-                  alert("Invalid image URL. Please make sure it ends in .jpg, .png, or is a direct image link.");
+                  e.target.onerror = null; // Prevents infinite loop
+                  e.target.src = '';       // Silently clears broken images
                 }}
               />
             ) : (
