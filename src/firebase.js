@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth"; // <-- ADD THIS
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,11 +8,11 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export const db = getFirestore(app);
-export const auth = getAuth(app); // <-- ADD THIS
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.projectId;
+const app = isConfigValid ? initializeApp(firebaseConfig) : null;
+
+export const db = isConfigValid ? getFirestore(app) : null;
+export const auth = isConfigValid ? getAuth(app) : null; // ADD THIS LINE
