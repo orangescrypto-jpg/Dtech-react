@@ -29,8 +29,6 @@ export default function Admin() {
   // --- DASHBOARD & POST STATE ---
   const [posts, setPosts] = useState([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  
-  // View state: 'list' or 'editor'
   const [view, setView] = useState('list'); 
   const [editingId, setEditingId] = useState(null);
 
@@ -39,18 +37,28 @@ export default function Admin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHtmlView, setIsHtmlView] = useState(false);
 
-  // Fetch Posts for the list
+  // Fetch Posts
   const fetchPosts = async () => {
     setIsLoadingPosts(true);
     const querySnapshot = await getDocs(collection(db, 'blogPosts'));
     const postsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Sort by date descending (newest first)
     postsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     setPosts(postsData);
     setIsLoadingPosts(false);
   };
 
   useEffect(() => { if (user) fetchPosts(); }, [user]);
+
+  // --- THE FIX: Smart Sync for the Visual Editor ---
+  // This keeps the visual editor perfectly synced with formData.content 
+  // without deleting your text when you switch views!
+  useEffect(() => {
+    if (!isHtmlView && editorRef.current && view === 'editor') {
+      if (editorRef.current.innerHTML !== formData.content) {
+        editorRef.current.innerHTML = formData.content;
+      }
+    }
+  }, [isHtmlView, view, formData.content]);
 
   // --- FORM & EDITOR COMMANDS ---
   const handleChange = (e) => { setFormData({ ...formData, [e.target.name]: e.target.value }); };
@@ -65,15 +73,24 @@ export default function Admin() {
     if (url) document.execCommand('insertImage', false, url);
   };
 
+  // Safely save visual text to background state before switching views
   const handleEditorBlur = () => {
     if (editorRef.current && !isHtmlView) {
       setFormData({ ...formData, content: editorRef.current.innerHTML });
     }
   };
 
+  // Switch to Visual Mode
   const switchToVisual = () => {
-    if (editorRef.current) editorRef.current.innerHTML = formData.content;
     setIsHtmlView(false);
+  };
+
+  // Switch to HTML Mode
+  const switchToHtml = () => {
+    if (editorRef.current) {
+      setFormData(prev => ({ ...prev, content: editorRef.current.innerHTML }));
+    }
+    setIsHtmlView(true);
   };
 
   // --- POST ACTIONS ---
@@ -89,25 +106,27 @@ export default function Admin() {
       title: post.title,
       author: post.author,
       excerpt: post.excerpt,
-      content: post.content,
+      content: post.content || "", // Load existing HTML
       coverUrl: post.image
     });
     setEditingId(post.id);
-    setIsHtmlView(false);
+    setIsHtmlView(false); // Start in visual mode (the useEffect will safely load it)
     setView('editor');
   };
 
   const handleDeletePost = async (postId) => {
     if (window.confirm("Are you sure you want to delete this post? This cannot be undone.")) {
       await deleteDoc(doc(db, 'blogPosts', postId));
-      fetchPosts(); // Refresh list
+      fetchPosts();
     }
   };
 
-  // --- SUBMIT (CREATE OR UPDATE) ---
+  // --- SUBMIT ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Get content from whichever view is currently active
     const finalContent = isHtmlView ? formData.content : (editorRef.current?.innerHTML || '');
+    
     if (!formData.title || !finalContent || !formData.coverUrl) return alert("Please fill out all fields.");
 
     setIsSubmitting(true);
@@ -122,17 +141,15 @@ export default function Admin() {
       };
 
       if (editingId) {
-        // UPDATE existing post
         await updateDoc(doc(db, 'blogPosts', editingId), postPayload);
         alert("Post updated successfully!");
       } else {
-        // CREATE new post
         await addDoc(collection(db, 'blogPosts'), { ...postPayload, createdAt: serverTimestamp() });
         alert("Post published successfully!");
       }
       
-      setView('list'); // Go back to list
-      fetchPosts();   // Refresh list
+      setView('list');
+      fetchPosts();
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to save post.");
@@ -156,7 +173,7 @@ export default function Admin() {
     );
   }
 
-  // --- 3. ADMIN DASHBOARD (List View) ---
+  // --- 3. LIST VIEW ---
   if (view === 'list') {
     return (
       <div>
@@ -205,7 +222,7 @@ export default function Admin() {
     );
   }
 
-  // --- 4. EDITOR VIEW (Create or Edit Mode) ---
+  // --- 4. EDITOR VIEW ---
   return (
     <div>
       <div className="bg-brand-dark text-white px-4 py-3 shadow-lg">
@@ -254,13 +271,34 @@ export default function Admin() {
               <button type="button" onClick={() => execCommand('formatBlock', '<h2>')} className="p-2 hover:bg-gray-200 rounded font-bold">H2</button>
               <button type="button" onClick={() => execCommand('insertUnorderedList')} className="p-2 hover:bg-gray-200 rounded"><List size={18} /></button>
               <button type="button" onClick={handleInlineImage} className="p-2 hover:bg-gray-200 rounded text-brand-blue"><Image size={18} /></button>
-              <button type="button" onClick={() => isHtmlView ? switchToVisual() : (setIsHtmlView(true), handleEditorBlur())} className={`ml-auto p-2 rounded flex items-center gap-1 text-xs font-mono font-bold ${isHtmlView ? 'bg-brand-blue text-white' : 'hover:bg-gray-200 text-gray-600'}`} title="Toggle HTML View"><Code size={16} /> HTML</button>
+              
+              {/* Fixed Toggle Button */}
+              <button 
+                type="button" 
+                onClick={() => isHtmlView ? switchToVisual() : switchToHtml()} 
+                className={`ml-auto p-2 rounded flex items-center gap-1 text-xs font-mono font-bold ${isHtmlView ? 'bg-brand-blue text-white' : 'hover:bg-gray-200 text-gray-600'}`}
+                title="Toggle HTML View"
+              >
+                <Code size={16} /> HTML
+              </button>
             </div>
 
             {isHtmlView ? (
-              <textarea value={formData.content} onChange={(e) => setFormData({...formData, content: e.target.value})} className="h-[300px] md:h-[400px] p-4 border border-brand-border rounded-b-lg overflow-y-auto focus:ring-2 focus:ring-brand-blue outline-none text-sm font-mono bg-gray-900 text-green-400 resize-none" placeholder="<p>Type raw HTML here...</p>" />
+              <textarea 
+                value={formData.content}
+                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                className="h-[300px] md:h-[400px] p-4 border border-brand-border rounded-b-lg overflow-y-auto focus:ring-2 focus:ring-brand-blue outline-none text-sm font-mono bg-gray-900 text-green-400 resize-none"
+                placeholder="<p>Type raw HTML here...</p>"
+              />
             ) : (
-              <div ref={editorRef} contentEditable suppressContentEditableWarning onBlur={handleEditorBlur} className="h-[300px] md:h-[400px] p-4 border border-brand-border rounded-b-lg overflow-y-auto focus:ring-2 focus:ring-brand-blue outline-none text-brand-gray leading-relaxed prose max-w-none" style={{ minHeight: '300px' }} />
+              <div 
+                ref={editorRef} 
+                contentEditable 
+                suppressContentEditableWarning 
+                onBlur={handleEditorBlur} 
+                className="h-[300px] md:h-[400px] p-4 border border-brand-border rounded-b-lg overflow-y-auto focus:ring-2 focus:ring-brand-blue outline-none text-brand-gray leading-relaxed prose max-w-none" 
+                style={{ minHeight: '300px' }} 
+              />
             )}
           </div>
 
