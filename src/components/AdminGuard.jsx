@@ -9,7 +9,6 @@ export default function AdminGuard({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Listen for Google Login state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -22,8 +21,8 @@ export default function AdminGuard({ children }) {
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error("Login failed:", error);
-      alert("Login failed. Check console.");
+      console.error(error);
+      alert("Login failed.");
     }
   };
 
@@ -31,7 +30,6 @@ export default function AdminGuard({ children }) {
     await signOut(auth);
   };
 
-  // Loading spinner
   if (loading) {
     return (
       <div className="section-container py-32 flex justify-center">
@@ -40,12 +38,11 @@ export default function AdminGuard({ children }) {
     );
   }
 
-  // If NOT logged in, show Google Button
   if (!user) {
     return (
       <div className="section-container py-32 flex flex-col items-center justify-center text-center">
         <h1 className="text-3xl font-bold mb-4">Admin Access Required</h1>
-        <p className="text-brand-gray mb-8 max-w-md">You must be authorized to create posts. Please sign in with your approved Google account.</p>
+        <p className="text-brand-gray mb-8 max-w-md">You must be authorized to create or edit blog posts. Please sign in with your approved Google account.</p>
         <button onClick={handleLogin} className="btn-primary flex items-center gap-2">
           <LogIn size={20} /> Sign in with Google
         </button>
@@ -53,7 +50,6 @@ export default function AdminGuard({ children }) {
     );
   }
 
-  // If logged in, show dashboard
   return (
     <div>
       <div className="bg-brand-dark text-white px-4 py-3 flex justify-between items-center">
