@@ -6,6 +6,7 @@ import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetail';
 import Contact from './pages/Contact';
 import Privacy from './pages/Privacy';
+import Admin from './pages/Admin'; // <-- Added Admin import
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="blog/:id" element={<BlogDetail />} />
           <Route path="contact" element={<Contact />} />
           <Route path="privacy" element={<Privacy />} />
+          <Route path="admin" element={<Admin />} /> {/* <-- Added Admin route */}
         </Route>
       </Routes>
     </Router>
