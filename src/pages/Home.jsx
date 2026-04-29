@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, HeartPulse, Shield, BookOpen } from 'lucide-react';
-import { blogPosts } from '../data/blogData';
+// FIXED: Import the Firebase hook (with .js extension) and Skeleton
+import { useBlogs } from '../hooks/useBlogData.js';
+import SkeletonCard from '../components/SkeletonCard.jsx';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -9,7 +11,9 @@ const fadeInUp = {
 };
 
 export default function Home() {
-  const featuredPosts = blogPosts.slice(0, 3);
+  // Fetch live data from Firebase
+  const { blogs, loading, error } = useBlogs();
+  const featuredPosts = blogs.slice(0, 3); // Grab the top 3
 
   return (
     <div>
@@ -77,27 +81,34 @@ export default function Home() {
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            {featuredPosts.map((post, i) => (
-              <motion.article 
-                key={post.id}
-                initial="hidden" 
-                whileInView="visible" 
-                viewport={{ once: true }}
-                variants={fadeInUp}
-                transition={{ delay: i * 0.1 }}
-              >
-                <Link to={`/blog/${post.id}`} className="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-brand-border">
-                  <div className="h-48 overflow-hidden">
-                    <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </div>
-                  <div className="p-6">
-                    <div className="text-xs text-brand-gray mb-2">{post.date} • {post.author}</div>
-                    <h3 className="text-lg font-bold group-hover:text-brand-blue transition-colors mb-2 line-clamp-2">{post.title}</h3>
-                    <p className="text-sm text-brand-gray line-clamp-2">{post.excerpt}</p>
-                  </div>
-                </Link>
-              </motion.article>
-            ))}
+            {/* Show Skeletons while Firebase is loading */}
+            {loading ? (
+              Array(3).fill(0).map((_, i) => <SkeletonCard key={i} />)
+            ) : error ? (
+              <p className="text-brand-gray col-span-3 text-center py-8">{error}</p>
+            ) : (
+              featuredPosts.map((post, i) => (
+                <motion.article 
+                  key={post.id}
+                  initial="hidden" 
+                  whileInView="visible" 
+                  viewport={{ once: true }}
+                  variants={fadeInUp}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <Link to={`/blog/${post.id}`} className="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-brand-border">
+                    <div className="h-48 overflow-hidden">
+                      <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                    <div className="p-6">
+                      <div className="text-xs text-brand-gray mb-2">{post.date} • {post.author}</div>
+                      <h3 className="text-lg font-bold group-hover:text-brand-blue transition-colors mb-2 line-clamp-2">{post.title}</h3>
+                      <p className="text-sm text-brand-gray line-clamp-2">{post.excerpt}</p>
+                    </div>
+                  </Link>
+                </motion.article>
+              ))
+            )}
           </div>
         </div>
       </section>
