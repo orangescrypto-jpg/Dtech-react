@@ -1,21 +1,42 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, UserCircle } from 'lucide-react';
-import { blogPosts } from '../data/blogData';
+import { useBlog } from '../hooks/useBlogData'; // <-- Use the Firebase hook instead of static data
 
 export default function BlogDetail() {
   const { id } = useParams();
-  const post = blogPosts.find(p => p.id === id);
+  const { blog, loading, error } = useBlog(id); // <-- Fetch from backend
 
-  if (!post) {
-    return <div className="section-container py-24 text-center"><h1 className="text-3xl font-bold">Post not found</h1><Link to="/blog" className="text-brand-blue mt-4 inline-block">Back to Blog</Link></div>;
+  // 1. Loading State
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-32">
+        <div className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
+  // 2. Error / Not Found State
+  if (error || !blog) {
+    return (
+      <div className="section-container py-24 text-center">
+        <h1 className="text-3xl font-bold mb-4">Post not found</h1>
+        <p className="text-brand-gray mb-6">{error || "This article may have been moved or deleted."}</p>
+        <Link to="/blog" className="btn-primary inline-block">Back to Blog</Link>
+      </div>
+    );
+  }
+
+  // 3. Success State - Render the Blog
   return (
     <div className="bg-white">
       {/* Hero Image */}
-      <div className="h-[40vh] md:h-[50vh] w-full relative overflow-hidden">
-        <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+      <div className="h-[40vh] md:h-[50vh] w-full relative overflow-hidden bg-gray-100">
+        <img 
+          src={blog.image} 
+          alt={blog.title} 
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
       </div>
 
@@ -26,32 +47,41 @@ export default function BlogDetail() {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl md:text-5xl font-extrabold text-brand-dark leading-tight mb-6">
-            {post.title}
+            {blog.title}
           </h1>
           
           <div className="flex items-center gap-6 text-sm text-brand-gray mb-10 pb-10 border-b border-brand-border">
             <div className="flex items-center gap-2">
               <UserCircle size={18} />
-              {post.author}
+              {blog.author}
             </div>
             <div className="flex items-center gap-2">
               <Calendar size={18} />
-              {post.date}
+              {blog.date}
             </div>
           </div>
 
-          {/* Simulating Rich Text / Markdown Content */}
-          <div className="prose prose-lg max-w-none text-brand-dark/80 leading-relaxed space-y-6">
-            <p className="text-xl font-medium text-brand-dark">{post.excerpt}</p>
-            <p>{post.content}</p>
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
-            <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
-            <h2 className="text-2xl font-bold text-brand-dark mt-8 mb-4">Key Takeaways</h2>
-            <ul className="list-disc pl-6 space-y-2 text-brand-gray">
-              <li>Technology should augment, not replace, clinical judgment.</li>
-              <li>Data literacy is as important as clinical literacy in 2024.</li>
-              <li>Nurses are the ultimate end-users of health tech—our voices matter in design.</li>
-            </ul>
+          {/* Rich Text Content Container */}
+          {/* The arbitrary Tailwind classes [&_tag]:... ensure that whatever HTML 
+              the React Quill editor generates matches your brand design system perfectly */}
+          <div className="max-w-none text-brand-dark/80 leading-relaxed space-y-6
+                        [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-brand-dark [&_h1]:mt-8 [&_h1]:mb-4
+                        [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-brand-dark [&_h2]:mt-6 [&_h2]:mb-3
+                        [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-brand-dark [&_h3]:mt-4 [&_h3]:mb-2
+                        [&_p]:text-brand-gray [&_p]:leading-relaxed [&_p]:mb-4
+                        [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-2 [&_ul]:text-brand-gray
+                        [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:space-y-2 [&_ol]:text-brand-gray
+                        [&_li]:mb-1
+                        [&_strong]:font-bold [&_strong]:text-brand-dark
+                        [&_a]:text-brand-blue [&_a]:underline
+                        [&_blockquote]:border-l-4 [&_blockquote]:border-brand-blue [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-600
+                        [&_img]:rounded-xl [&_img]:shadow-md [&_img]:my-6 [&_img]:max-w-full [&_img]:mx-auto">
+            
+            {/* Show the excerpt distinctly */}
+            <p className="text-xl font-medium text-brand-dark mb-4">{blog.excerpt}</p>
+            
+            {/* Safely render the HTML string generated by React Quill */}
+            <div dangerouslySetInnerHTML={{ __html: blog.content }} />
           </div>
         </motion.div>
       </article>
