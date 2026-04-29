@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, UserCircle, MessageSquare, Send, Loader2, Twitter, Linkedin, Mail, LinkIcon, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, UserCircle, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useBlog } from '../hooks/useBlogData';
-import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export default function BlogDetail() {
@@ -16,31 +16,27 @@ export default function BlogDetail() {
   const [commentForm, setCommentForm] = useState({ name: '', text: '' });
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // --- SHARE STATE ---
-  const [copied, setCopied] = useState(false);
-  const pageUrl = window.location.href; // Gets the exact URL of the current blog post
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(pageUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000); // Reset "Copied!" text after 2 seconds
-  };
-
   // Fetch comments for THIS specific post
   const fetchComments = async () => {
     if (!id) return;
     try {
+      // REMOVED: orderBy('createdAt', 'desc') from here to bypass Firebase Index requirements
       const q = query(
         collection(db, 'comments'), 
-        where('postId', '==', id), 
-        orderBy('createdAt', 'desc')
+        where('postId', '==', id)
       );
       const snapshot = await getDocs(q);
       const commentsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        date: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || 'Just now'
+        date: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || 'Just now',
+        // We grab the raw timestamp to sort it in JavaScript instead
+        rawTime: doc.data().createdAt?.seconds || 0
       }));
+      
+      // ADDED: Sort in JavaScript (Newest first). This works instantly without Firebase setup!
+      commentsData.sort((a, b) => b.rawTime - a.rawTime);
+      
       setComments(commentsData);
     } catch (err) {
       console.error("Error fetching comments:", err);
@@ -49,11 +45,15 @@ export default function BlogDetail() {
     }
   };
 
-  useEffect(() => { fetchComments(); }, [id]);
+  useEffect(() => {
+    fetchComments();
+  }, [id]);
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (!commentForm.name.trim() || !commentForm.text.trim()) return alert("Please enter your name and a comment.");
+    if (!commentForm.name.trim() || !commentForm.text.trim()) {
+      return alert("Please enter your name and a comment.");
+    }
 
     setSubmittingComment(true);
     try {
@@ -73,10 +73,14 @@ export default function BlogDetail() {
     }
   };
 
-  // --- 1. Loading State ---
-  if (loading) return (<div className="flex justify-center items-center py-32"><div className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div></div>);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-32">
+        <div className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
-  // --- 2. Error State ---
   if (error || !blog) {
     return (
       <div className="section-container py-24 text-center">
@@ -87,10 +91,8 @@ export default function BlogDetail() {
     );
   }
 
-  // --- 3. Success State ---
   return (
     <div className="bg-white">
-      {/* Hero Image */}
       <div className="h-[40vh] md:h-[50vh] w-full relative overflow-hidden bg-gray-100">
         <img src={blog.image} alt={blog.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -106,70 +108,17 @@ export default function BlogDetail() {
             {blog.title}
           </h1>
           
-          {/* Author, Date, & SHARE BUTTONS */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-10 pb-10 border-b border-brand-border">
-            <div className="flex items-center gap-6 text-sm text-brand-gray">
-              <div className="flex items-center gap-2">
-                <UserCircle size={18} />
-                {blog.author}
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={18} />
-                {blog.date}
-              </div>
+          <div className="flex items-center gap-6 text-sm text-brand-gray mb-10 pb-10 border-b border-brand-border">
+            <div className="flex items-center gap-2">
+              <UserCircle size={18} />
+              {blog.author}
             </div>
-
-            {/* Spacer to push share buttons to the right on desktop */}
-            <div className="flex-grow"></div>
-
-            {/* Share Buttons */}
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-bold text-brand-gray tracking-wider mr-2">SHARE:</span>
-              
-              {/* Twitter/X */}
-              <a 
-                href={`https://twitter.com/intent/tweet?url=${pageUrl}&text=${blog.title}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 text-brand-gray hover:text-[#1DA1F2] hover:bg-gray-50 rounded-lg transition-colors"
-                title="Share on X (Twitter)"
-              >
-                <Twitter size={18} />
-              </a>
-
-              {/* LinkedIn */}
-              <a 
-                href={`https://www.linkedin.com/sharing/share-offsite/?url=${pageUrl}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 text-brand-gray hover:text-[#0077B5] hover:bg-gray-50 rounded-lg transition-colors"
-                title="Share on LinkedIn"
-              >
-                <Linkedin size={18} />
-              </a>
-
-              {/* Email */}
-              <a 
-                href={`mailto:?subject=${blog.title}&body=Check out this article: ${pageUrl}`} 
-                className="p-2 text-brand-gray hover:text-brand-dark hover:bg-gray-50 rounded-lg transition-colors"
-                title="Share via Email"
-              >
-                <Mail size={18} />
-              </a>
-
-              {/* Copy Link */}
-              <button 
-                onClick={handleCopyLink} 
-                className="p-2 text-brand-gray hover:text-brand-blue hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-1"
-                title="Copy Link"
-              >
-                {copied ? <Check size={18} className="text-green-500" /> : <LinkIcon size={18} />}
-                {copied && <span className="text-xs text-green-500 font-medium">Copied!</span>}
-              </button>
+            <div className="flex items-center gap-2">
+              <Calendar size={18} />
+              {blog.date}
             </div>
           </div>
 
-          {/* Blog Content */}
           <div className="max-w-none text-brand-dark/80 leading-relaxed space-y-6
                     [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-brand-dark [&_h1]:mt-8 [&_h1]:mb-4
                     [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-brand-dark [&_h2]:mt-6 [&_h2]:mb-3
@@ -194,7 +143,6 @@ export default function BlogDetail() {
             <h2 className="text-2xl md:text-3xl font-extrabold">Comments ({comments.length})</h2>
           </div>
 
-          {/* Comment Form */}
           <form onSubmit={handleCommentSubmit} className="bg-gray-50 p-6 rounded-xl border border-brand-border mb-10">
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <input 
@@ -205,7 +153,7 @@ export default function BlogDetail() {
                 className="w-full px-4 py-3 rounded-lg border border-brand-border focus:ring-2 focus:ring-brand-blue outline-none bg-white"
                 required
               />
-              <div className="hidden md:block"></div> {/* Spacer for grid alignment */}
+              <div className="hidden md:block"></div>
             </div>
             <textarea 
               rows="3" 
@@ -223,7 +171,6 @@ export default function BlogDetail() {
             </div>
           </form>
 
-          {/* Comments List */}
           {commentsLoading ? (
             <div className="text-center py-8 text-brand-gray">Loading comments...</div>
           ) : comments.length === 0 ? (
