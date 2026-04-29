@@ -1,11 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, UserCircle } from 'lucide-react';
-import { useBlog } from '../hooks/useBlogData'; // <-- Use the Firebase hook instead of static data
+// FIX: Added .js to the end of the path below!
+import { useBlog } from '../hooks/useBlogData.js'; 
 
 export default function BlogDetail() {
   const { id } = useParams();
-  const { blog, loading, error } = useBlog(id); // <-- Fetch from backend
+  const { blog, loading, error } = useBlog(id);
 
   // 1. Loading State
   if (loading) {
@@ -62,8 +63,6 @@ export default function BlogDetail() {
           </div>
 
           {/* Rich Text Content Container */}
-          {/* The arbitrary Tailwind classes [&_tag]:... ensure that whatever HTML 
-              the React Quill editor generates matches your brand design system perfectly */}
           <div className="max-w-none text-brand-dark/80 leading-relaxed space-y-6
                         [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-brand-dark [&_h1]:mt-8 [&_h1]:mb-4
                         [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-brand-dark [&_h2]:mt-6 [&_h2]:mb-3
