@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, UserCircle, MessageSquare, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, UserCircle, MessageSquare, Send, Loader2, Share2 } from 'lucide-react';
 import { useBlog } from '../hooks/useBlogData';
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -16,27 +16,44 @@ export default function BlogDetail() {
   const [commentForm, setCommentForm] = useState({ name: '', text: '' });
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Fetch comments for THIS specific post
+  // --- NEW: SHARE LOGIC ---
+  const handleShare = async () => {
+    const shareData = {
+      title: blog.title,
+      text: `Check out this article on DTECHNURSE: ${blog.excerpt}`,
+      url: window.location.href,
+    };
+
+    // If on mobile/tablet, use native share menu. If on desktop, copy link.
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error("Share cancelled:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert("Link copied to clipboard! Paste it anywhere to share.");
+      } catch (err) {
+        alert("Failed to copy link.");
+      }
+    }
+  };
+
+  // Fetch comments
   const fetchComments = async () => {
     if (!id) return;
     try {
-      // REMOVED: orderBy('createdAt', 'desc') from here to bypass Firebase Index requirements
-      const q = query(
-        collection(db, 'comments'), 
-        where('postId', '==', id)
-      );
+      const q = query(collection(db, 'comments'), where('postId', '==', id));
       const snapshot = await getDocs(q);
       const commentsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         date: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || 'Just now',
-        // We grab the raw timestamp to sort it in JavaScript instead
         rawTime: doc.data().createdAt?.seconds || 0
       }));
-      
-      // ADDED: Sort in JavaScript (Newest first). This works instantly without Firebase setup!
       commentsData.sort((a, b) => b.rawTime - a.rawTime);
-      
       setComments(commentsData);
     } catch (err) {
       console.error("Error fetching comments:", err);
@@ -45,15 +62,11 @@ export default function BlogDetail() {
     }
   };
 
-  useEffect(() => {
-    fetchComments();
-  }, [id]);
+  useEffect(() => { fetchComments(); }, [id]);
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (!commentForm.name.trim() || !commentForm.text.trim()) {
-      return alert("Please enter your name and a comment.");
-    }
+    if (!commentForm.name.trim() || !commentForm.text.trim()) return alert("Please enter your name and a comment.");
 
     setSubmittingComment(true);
     try {
@@ -73,13 +86,7 @@ export default function BlogDetail() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-32">
-        <div className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  if (loading) return (<div className="flex justify-center items-center py-32"><div className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div></div>);
 
   if (error || !blog) {
     return (
@@ -108,15 +115,20 @@ export default function BlogDetail() {
             {blog.title}
           </h1>
           
-          <div className="flex items-center gap-6 text-sm text-brand-gray mb-10 pb-10 border-b border-brand-border">
-            <div className="flex items-center gap-2">
-              <UserCircle size={18} />
-              {blog.author}
+          {/* Author, Date, and NEW Share Button Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10 pb-10 border-b border-brand-border">
+            <div className="flex items-center gap-6 text-sm text-brand-gray">
+              <div className="flex items-center gap-2"><UserCircle size={18} />{blog.author}</div>
+              <div className="flex items-center gap-2"><Calendar size={18} />{blog.date}</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar size={18} />
-              {blog.date}
-            </div>
+            
+            {/* The Share Button */}
+            <button 
+              onClick={handleShare} 
+              className="flex items-center gap-2 text-sm text-brand-blue hover:text-brand-dark transition-colors font-medium border border-brand-blue/20 px-4 py-2 rounded-lg hover:bg-brand-light w-fit"
+            >
+              <Share2 size={16} /> Share Article
+            </button>
           </div>
 
           <div className="max-w-none text-brand-dark/80 leading-relaxed space-y-6
@@ -136,7 +148,7 @@ export default function BlogDetail() {
           </div>
         </motion.div>
 
-        {/* --- COMMENTS SECTION --- */}
+        {/* COMMENTS SECTION */}
         <div className="mt-16 pt-10 border-t border-brand-border">
           <div className="flex items-center gap-3 mb-8">
             <MessageSquare size={24} className="text-brand-blue" />
@@ -145,28 +157,13 @@ export default function BlogDetail() {
 
           <form onSubmit={handleCommentSubmit} className="bg-gray-50 p-6 rounded-xl border border-brand-border mb-10">
             <div className="grid md:grid-cols-2 gap-4 mb-4">
-              <input 
-                type="text" 
-                placeholder="Your Name" 
-                value={commentForm.name}
-                onChange={(e) => setCommentForm({...commentForm, name: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg border border-brand-border focus:ring-2 focus:ring-brand-blue outline-none bg-white"
-                required
-              />
+              <input type="text" placeholder="Your Name" value={commentForm.name} onChange={(e) => setCommentForm({...commentForm, name: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-brand-border focus:ring-2 focus:ring-brand-blue outline-none bg-white" required />
               <div className="hidden md:block"></div>
             </div>
-            <textarea 
-              rows="3" 
-              placeholder="Write your comment..." 
-              value={commentForm.text}
-              onChange={(e) => setCommentForm({...commentForm, text: e.target.value})}
-              className="w-full px-4 py-3 rounded-lg border border-brand-border focus:ring-2 focus:ring-brand-blue outline-none bg-white resize-none mb-4"
-              required
-            ></textarea>
+            <textarea rows="3" placeholder="Write your comment..." value={commentForm.text} onChange={(e) => setCommentForm({...commentForm, text: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-brand-border focus:ring-2 focus:ring-brand-blue outline-none bg-white resize-none mb-4" required></textarea>
             <div className="flex justify-end">
               <button type="submit" disabled={submittingComment} className="btn-primary flex items-center gap-2 disabled:opacity-50">
-                {submittingComment ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                Post Comment
+                {submittingComment ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} Post Comment
               </button>
             </div>
           </form>
@@ -174,16 +171,12 @@ export default function BlogDetail() {
           {commentsLoading ? (
             <div className="text-center py-8 text-brand-gray">Loading comments...</div>
           ) : comments.length === 0 ? (
-            <p className="text-center text-brand-gray py-8 bg-gray-50 rounded-xl border border-dashed border-brand-border">
-              No comments yet. Be the first to share your thoughts!
-            </p>
+            <p className="text-center text-brand-gray py-8 bg-gray-50 rounded-xl border border-dashed border-brand-border">No comments yet. Be the first to share your thoughts!</p>
           ) : (
             <div className="space-y-6">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex gap-4 p-4 bg-white border border-brand-border rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-brand-light text-brand-blue flex items-center justify-center font-bold flex-shrink-0">
-                    {comment.name.charAt(0).toUpperCase()}
-                  </div>
+                  <div className="w-10 h-10 rounded-full bg-brand-light text-brand-blue flex items-center justify-center font-bold flex-shrink-0">{comment.name.charAt(0).toUpperCase()}</div>
                   <div className="flex-grow">
                     <div className="flex items-center gap-3 mb-1">
                       <span className="font-semibold text-brand-dark text-sm">{comment.name}</span>
